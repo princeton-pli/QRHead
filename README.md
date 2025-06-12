@@ -5,7 +5,7 @@
 </p>
 
 
-[[Query-Focused Retrieval Heads Improve Long-Context Reasoning and Re-ranking](https://#)]
+[[Query-Focused Retrieval Heads Improve Long-Context Reasoning and Re-ranking](https://arxiv.org/pdf/2506.09944)]
 
 **QRRetriever** is a general-purpose retriever that uses the attention scores of QRHead (Query-Focused Retrieval Heads) of language models for retrieval from long context.
 
