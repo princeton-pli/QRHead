@@ -1,5 +1,0 @@
-# Default configuration for QRRetriever
-
-attn_head_set: "14-22,13-16,14-28,14-31,16-19,14-1,16-26,17-24,14-0,13-0,16-25,13-12,13-1,13-10,17-27,20-14" # NQHELDOUT0_ORDER600_top16 qr heads
-model_base_class: "Llama-3.1-8B-Instruct"
-model_name_or_path: "meta-llama/Llama-3.1-8B-Instruct"

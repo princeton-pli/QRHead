@@ -1,5 +1,5 @@
 # Default configuration
 
-attn_head_set: "full_heads"
+attn_head_set: "13-18,13-21,8-11,14-13,17-29,13-1,13-13,14-29,14-31,13-8,16-1,17-21,13-3,10-31,13-4,14-22" # top16
 model_base_class: "Llama-3.1-8B-Instruct"
 model_name_or_path: "meta-llama/Llama-3.1-8B-Instruct"

@@ -38,7 +38,7 @@ class AttnBasedRetriever:
             setattr(self, k, v)
 
         # init model etc
-        if self.model_base_class.lower() in ['llama-3.1-8b-instruct']:
+        if self.model_base_class.lower() in ['llama-3.1-8b-instruct', 'llama-3.1-70b-instruct', 'llama-3.2-3b-instruct']:
             BaseClass = LlamaForCausalLM
         else:
             raise ValueError(f"Unsupported model class: {self.model_base_class}")
@@ -102,13 +102,13 @@ class AttnBasedRetriever:
         return start_idx, end_idx
     
     def get_prompt(self, query: str, docs: List[Dict]):
-        if self.model_base_class.lower() in ['llama-3.1-8b-instruct']:
+        if self.model_base_class.lower() in ['llama-3.1-8b-instruct', 'llama-3.1-70b-instruct', 'llama-3.2-3b-instruct']:
             self.prompt_prefix = '<|start_header_id|>user<|end_header_id|>'
             self.prompt_suffix = '<|eot_id|><|start_header_id|>assistant<|end_header_id|>'
         else:
             raise NotImplementedError("Prompt prefix and suffix not defined for the model of {}.".format(self.model_base_class))
         
-        if self.model_base_class.lower() in ['llama-3.1-8b-instruct']:
+        if self.model_base_class.lower() in ['llama-3.1-8b-instruct', 'llama-3.1-70b-instruct', 'llama-3.2-3b-instruct']:
             self.prompt_separator = ' \n\n'
         else:
             self.prompt_separator = '\n\n'
@@ -174,9 +174,10 @@ class AttnBasedRetriever:
         query_span = (query_start_idx, query_end_idx)
 
         return llm_prompt, prompt_token_ids, query_span, document_span_intervals            
+    
+        
 
-
-    def score_docs(self, query: str, docs: List[Dict]) -> Dict[str, float]:
+    def score_docs(self, query: str, docs: List[Dict]) -> Dict[str, Dict]:
         """
         score docs for a given query. return a dict of doc_id to scoring info.
         each doc is a dict with the following keys:
@@ -309,6 +310,9 @@ class AttnBasedRetriever:
 
 
 
+
+
+
 class FullHeadRetriever(AttnBasedRetriever):
     def __init__(self,
         config_or_config_path: Optional[Union[Dict, str]] = None,
@@ -337,12 +341,20 @@ class FullHeadRetriever(AttnBasedRetriever):
                 # infer config from model_base_class
                 if model_base_class.lower() == 'llama-3.1-8b-instruct':
                     config = load_config(CONFIG_DIR / 'Llama-3.1-8B-Instruct_full_head.yaml')
+                elif model_base_class.lower() == 'llama-3.1-70b-instruct':
+                    config = load_config(CONFIG_DIR / 'Llama-3.1-70B-Instruct_full_head.yaml')
+                elif model_base_class.lower() == 'llama-3.2-3b-instruct':
+                    config = load_config(CONFIG_DIR / 'Llama-3.2-3B-Instruct_full_head.yaml')
                 else:
                     raise NotImplementedError(f"Config inference for model_base_class {model_base_class} is not implemented.")
             elif model_name_or_path is not None:
                 # infer config from model_name_or_path
                 if 'llama-3.1-8b-instruct' in model_name_or_path.lower():
                     config = load_config(CONFIG_DIR / 'Llama-3.1-8B-Instruct_full_head.yaml')
+                elif 'llama-3.1-70b-instruct' in model_name_or_path.lower():
+                    config = load_config(CONFIG_DIR / 'Llama-3.1-70B-Instruct_full_head.yaml')
+                elif 'llama-3.2-3b-instruct' in model_name_or_path.lower():
+                    config = load_config(CONFIG_DIR / 'Llama-3.2-3B-Instruct_full_head.yaml')
                 else:
                     raise NotImplementedError(f"Config inference for model_name_or_path {model_name_or_path} is not implemented.")
             else:
@@ -374,20 +386,28 @@ class QRRetriever(AttnBasedRetriever):
             else:
                 config = config_or_config_path
         else:
+            print("config_or_config_path is not provided. Use default config: LME for qr-head.", flush=True)
             # infer from model information
             if model_base_class is not None:
-                # infer config from model_base_class
+                # infer config from model_base_class, default qr-head config is LME
                 if model_base_class.lower() == 'llama-3.1-8b-instruct':
-                    config = load_config(CONFIG_DIR / 'Llama-3.1-8B-Instruct_qr_head.yaml')
+                    config = load_config(CONFIG_DIR / 'Llama-3.1-8B-Instruct_qr_head_LME.yaml')
+                elif model_base_class.lower() == 'llama-3.1-70b-instruct':
+                    config = load_config(CONFIG_DIR / 'Llama-3.1-70B-Instruct_qr_head_LME.yaml')
+                elif model_base_class.lower() == 'llama-3.2-3b-instruct':
+                    config = load_config(CONFIG_DIR / 'Llama-3.2-3B-Instruct_qr_head_LME.yaml')
                 else:
                     raise NotImplementedError(f"Config inference for model_base_class {model_base_class} is not implemented.")
             elif model_name_or_path is not None:
-                # infer config from model_name_or_path
+                # infer config from model_name_or_path, default qr-head config is LME
                 if 'llama-3.1-8b-instruct' in model_name_or_path.lower():
-                    config = load_config(CONFIG_DIR / 'Llama-3.1-8B-Instruct_qr_head.yaml')
+                    config = load_config(CONFIG_DIR / 'Llama-3.1-8B-Instruct_qr_head_LME.yaml')
+                elif 'llama-3.1-70b-instruct' in model_name_or_path.lower():
+                    config = load_config(CONFIG_DIR / 'Llama-3.1-70B-Instruct_qr_head_LME.yaml')
+                elif 'llama-3.2-3b-instruct' in model_name_or_path.lower():
+                    config = load_config(CONFIG_DIR / 'Llama-3.2-3B-Instruct_qr_head_LME.yaml')
                 else:
                     raise NotImplementedError(f"Config inference for model_name_or_path {model_name_or_path} is not implemented.")
             else:
                 raise ValueError("model_name_or_path or model_base_class is required to use default config")
         return config
-
