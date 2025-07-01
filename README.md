@@ -45,10 +45,8 @@ print(scores)
 * `Llama-3.1-70B-Instruct`
 * `Qwen2.5-7B-Instruct`
 
-## TODOS
-
-- [ ] Add experiment scripts for LongMemEval, CLIPPER, and BEIR.
-- [ ] Add more documentation
+## Reproducing Experiments on Long-Context Reasoning and BEIR Re-ranking
+Please refer to the [README](https://github.com/princeton-pli/QRHead/tree/main/exp_scripts) in `exp_scripts`
 
 ## Citation
 
