@@ -1,0 +1,5 @@
+# Default configuration
+
+attn_head_set: "full_heads"
+model_base_class: "Qwen2.5-7B-Instruct"
+model_name_or_path: "Qwen/Qwen2.5-7B-Instruct"
