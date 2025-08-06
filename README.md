@@ -40,6 +40,7 @@ print(scores)
 ```
 
 **Supported models**:
+* `Llama-3.2-1B-Instruct`
 * `Llama-3.2-3B-Instruct`
 * `Llama-3.1-8B-Instruct`
 * `Llama-3.1-70B-Instruct`
