@@ -8,6 +8,7 @@ from pathlib import Path
 from .config import load_config
 from .custom_cache import DynamicCacheWithQuery
 from .custom_modeling_llama import LlamaForCausalLM, repeat_kv
+from .custom_modeling_qwen2 import Qwen2ForCausalLM
 
 PACKAGE_DIR = Path(__file__).parent
 CONFIG_DIR = PACKAGE_DIR / 'configs'
@@ -38,8 +39,10 @@ class AttnBasedRetriever:
             setattr(self, k, v)
 
         # init model etc
-        if self.model_base_class.lower() in ['llama-3.1-8b-instruct', 'llama-3.1-70b-instruct', 'llama-3.2-3b-instruct']:
+        if self.model_base_class.lower() in ['llama-3.1-8b-instruct', 'llama-3.1-70b-instruct', 'llama-3.2-3b-instruct', 'llama-3.2-1b-instruct']:
             BaseClass = LlamaForCausalLM
+        elif self.model_base_class.lower() in ['qwen2.5-7b-instruct']:
+            BaseClass = Qwen2ForCausalLM
         else:
             raise ValueError(f"Unsupported model class: {self.model_base_class}")
         
@@ -102,14 +105,19 @@ class AttnBasedRetriever:
         return start_idx, end_idx
     
     def get_prompt(self, query: str, docs: List[Dict]):
-        if self.model_base_class.lower() in ['llama-3.1-8b-instruct', 'llama-3.1-70b-instruct', 'llama-3.2-3b-instruct']:
+        if self.model_base_class.lower() in ['llama-3.1-8b-instruct', 'llama-3.1-70b-instruct', 'llama-3.2-3b-instruct', 'llama-3.2-1b-instruct']:
             self.prompt_prefix = '<|start_header_id|>user<|end_header_id|>'
             self.prompt_suffix = '<|eot_id|><|start_header_id|>assistant<|end_header_id|>'
+        elif self.model_base_class.lower() in ['qwen2.5-7b-instruct']:
+            self.prompt_prefix = '<|im_start|>user'
+            self.prompt_suffix = '<|im_end|>\n<|im_start|>assistant'
         else:
             raise NotImplementedError("Prompt prefix and suffix not defined for the model of {}.".format(self.model_base_class))
         
-        if self.model_base_class.lower() in ['llama-3.1-8b-instruct', 'llama-3.1-70b-instruct', 'llama-3.2-3b-instruct']:
+        if self.model_base_class.lower() in ['llama-3.1-8b-instruct', 'llama-3.1-70b-instruct', 'llama-3.2-3b-instruct', 'llama-3.2-1b-instruct']:
             self.prompt_separator = ' \n\n'
+        elif self.model_base_class.lower() in ['qwen2.5-7b-instruct']:
+            self.prompt_separator = '\n\n'
         else:
             self.prompt_separator = '\n\n'
 
@@ -288,7 +296,11 @@ class AttnBasedRetriever:
         kv_seq_len = key_states.size(-2)
 
         key_states = repeat_kv(key_states, num_key_value_groups)
-        attn_weights = torch.matmul(query_states, key_states.transpose(2,3)) / math.sqrt(head_dim)
+    
+        # Scale before multiplication to prevent overflow
+        scale = 1.0 / math.sqrt(head_dim)
+        scaled_queries = query_states * scale
+        attn_weights = torch.matmul(scaled_queries, key_states.transpose(2,3))
 
         if attn_weights.size() != (bsz, num_heads, q_len, kv_seq_len):
             raise ValueError(f"Attention weights should be of size {(bsz, num_heads, q_len, kv_seq_len)}, but is {attn_weights.size()}")
@@ -345,6 +357,10 @@ class FullHeadRetriever(AttnBasedRetriever):
                     config = load_config(CONFIG_DIR / 'Llama-3.1-70B-Instruct_full_head.yaml')
                 elif model_base_class.lower() == 'llama-3.2-3b-instruct':
                     config = load_config(CONFIG_DIR / 'Llama-3.2-3B-Instruct_full_head.yaml')
+                elif model_base_class.lower() == 'llama-3.2-1b-instruct':
+                    config = load_config(CONFIG_DIR / 'Llama-3.2-1B-Instruct_full_head.yaml')
+                elif model_base_class.lower() == 'qwen2.5-7b-instruct':
+                    config = load_config(CONFIG_DIR / 'Qwen2.5-7B-Instruct_full_head.yaml')
                 else:
                     raise NotImplementedError(f"Config inference for model_base_class {model_base_class} is not implemented.")
             elif model_name_or_path is not None:
@@ -355,6 +371,10 @@ class FullHeadRetriever(AttnBasedRetriever):
                     config = load_config(CONFIG_DIR / 'Llama-3.1-70B-Instruct_full_head.yaml')
                 elif 'llama-3.2-3b-instruct' in model_name_or_path.lower():
                     config = load_config(CONFIG_DIR / 'Llama-3.2-3B-Instruct_full_head.yaml')
+                elif 'llama-3.2-1b-instruct' in model_name_or_path.lower():
+                    config = load_config(CONFIG_DIR / 'Llama-3.2-1B-Instruct_full_head.yaml')
+                elif 'qwen2.5-7b-instruct' in model_name_or_path.lower():
+                    config = load_config(CONFIG_DIR / 'Qwen2.5-7B-Instruct_full_head.yaml')
                 else:
                     raise NotImplementedError(f"Config inference for model_name_or_path {model_name_or_path} is not implemented.")
             else:
@@ -396,6 +416,10 @@ class QRRetriever(AttnBasedRetriever):
                     config = load_config(CONFIG_DIR / 'Llama-3.1-70B-Instruct_qr_head_LME.yaml')
                 elif model_base_class.lower() == 'llama-3.2-3b-instruct':
                     config = load_config(CONFIG_DIR / 'Llama-3.2-3B-Instruct_qr_head_LME.yaml')
+                elif model_base_class.lower() == 'llama-3.2-1b-instruct':
+                    config = load_config(CONFIG_DIR / 'Llama-3.2-1B-Instruct_qr_head_LME.yaml')
+                elif model_base_class.lower() == 'qwen2.5-7b-instruct':
+                    config = load_config(CONFIG_DIR / 'Qwen2.5-7B-Instruct_qr_head_LME.yaml')
                 else:
                     raise NotImplementedError(f"Config inference for model_base_class {model_base_class} is not implemented.")
             elif model_name_or_path is not None:
@@ -406,6 +430,10 @@ class QRRetriever(AttnBasedRetriever):
                     config = load_config(CONFIG_DIR / 'Llama-3.1-70B-Instruct_qr_head_LME.yaml')
                 elif 'llama-3.2-3b-instruct' in model_name_or_path.lower():
                     config = load_config(CONFIG_DIR / 'Llama-3.2-3B-Instruct_qr_head_LME.yaml')
+                elif 'llama-3.2-1b-instruct' in model_name_or_path.lower():
+                    config = load_config(CONFIG_DIR / 'Llama-3.2-1B-Instruct_qr_head_LME.yaml')
+                elif 'qwen2.5-7b-instruct' in model_name_or_path.lower():
+                    config = load_config(CONFIG_DIR / 'Qwen2.5-7B-Instruct_qr_head_LME.yaml')
                 else:
                     raise NotImplementedError(f"Config inference for model_name_or_path {model_name_or_path} is not implemented.")
             else:
