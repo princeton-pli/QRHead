@@ -18,7 +18,7 @@ def parse_args():
     parser.add_argument('--model_path', type=str, required=True)
 
     parser.add_argument('--retrieval_method', type=str, required=True, choices=['oracle', 'baseline', 'retriever'], help='oracle, baseline, retriever')
-    parser.add_argument('--retrieval_result_file', type=str, required=True) # 'none' if not using retrieval
+    parser.add_argument('--retrieval_result_file', type=str, required=True) # 'none' if not using retriever as retrieval_method
 
     parser.add_argument('--topk_doc', type=int, required=True)
     return parser.parse_args()
@@ -91,13 +91,12 @@ def prepare_prompt_for_generation(docs: List[Dict], topk_doc_idx: List[str], gt_
 
 
 def vllm_eval(qids, prompts, model_path):
-    """
-    Batch inference from vllm
-    Given a dataframe of claims, generate inference for each claim
-    Replaced the claim only, not the book text
-    """
 
-    llm = LLM(model=model_path, max_model_len=131072, tensor_parallel_size=torch.cuda.device_count())    # TODO: max_model_len=131072
+    # max_model_len=131072 for Llama-3.1-8B-Instruct, Llama-3.1-70B-Instruct, Llama-3.2-3B-Instruct
+    #######################################################################
+    # TODO: Change max_model_len if using other models
+    #######################################################################
+    llm = LLM(model=model_path, max_model_len=131072, tensor_parallel_size=torch.cuda.device_count())
 
     try:
         tokenizer = llm.get_tokenizer()
