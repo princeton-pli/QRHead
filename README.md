@@ -5,9 +5,12 @@
 </p>
 
 
-[[Query-Focused Retrieval Heads Improve Long-Context Reasoning and Re-ranking](https://arxiv.org/pdf/2506.09944)]
+[[Query-Focused Retrieval Heads Improve Long-Context Reasoning and Re-ranking (EMNLP 2025)](https://arxiv.org/pdf/2506.09944)]
 
 **QRRetriever** is a general-purpose retriever that uses the attention scores of QRHead (Query-Focused Retrieval Heads) of language models for retrieval from long context.
+
+## TODO
+[ ] QRHead detection code
 
 ## Installation
 
@@ -52,10 +55,10 @@ Please refer to the [README](https://github.com/princeton-pli/QRHead/tree/main/e
 ## Citation
 
 ```bibtex
-@article{wu25qrhead,
+@inproceedings{wu25qrhead,
     title={Query-Focused Retrieval Heads Improve Long-Context Reasoning and Re-ranking},
     author={Wuwei Zhang and Fangcong Yin and Howard Yen and Danqi Chen and Xi Ye},
-    journal={arXiv preprint},
+    booktitle={Proceedings of EMNLP},
     year={2025}
 }
 ```
