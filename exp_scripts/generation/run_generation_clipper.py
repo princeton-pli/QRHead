@@ -90,7 +90,7 @@ def prepare_prompt_for_generation(docs: List[Dict], topk_doc_idx: List[str], gt_
 
 
 
-def vllm_eval(qids, prompts, model_path):
+def vllm_eval(prompts, model_path):
 
     # max_model_len=131072 for Llama-3.1-8B-Instruct, Llama-3.1-70B-Instruct, Llama-3.2-3B-Instruct
     #######################################################################
@@ -104,6 +104,7 @@ def vllm_eval(qids, prompts, model_path):
     except:
         tokenizer = AutoTokenizer.from_pretrained(model_path)
         print("Using custom tokenizer")
+
     sampling_params = SamplingParams(
         temperature=0.0,
         top_p=1.0,
@@ -130,22 +131,7 @@ def vllm_eval(qids, prompts, model_path):
         inputs.append(messages)
 
     outputs = llm.generate(inputs, sampling_params)
-
-    results = []
-    for i, out in enumerate(outputs):
-
-        assert type(out.outputs[0].text) == str
-        hypothesis = out.outputs[0].text
-        qid = qids[i]
-
-        results.append({
-            "idx": qid,
-            "hypothesis": hypothesis,
-        })
-
-    return results
-        
-        
+    return outputs
 
 
 
@@ -206,8 +192,7 @@ def main(args):
 
 
 
-    results = vllm_eval(
-        qids,
+    outputs = vllm_eval(
         prompts,
         args.model_path,
     )
@@ -215,15 +200,17 @@ def main(args):
     # Save the results to Jsonl file
     out_f = open(args.output_file, 'w')
 
-    for result in results:
-        qid = result['idx']
-        hypothesis = result['hypothesis']
+    for i, out in enumerate(outputs):
 
+        assert type(out.outputs[0].text) == str
+        qid = qids[i]
+        hypothesis = out.outputs[0].text
+
+        # Save the results to the output file
         out_f.write(json.dumps({
             "idx": qid,
             "hypothesis": hypothesis
         }) + '\n')
-
     out_f.close()
 
 

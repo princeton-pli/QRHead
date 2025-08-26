@@ -31,15 +31,15 @@ def parse_file(file_path):
 
 if __name__=="__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--TRUE_generation_result_path", type=str, default=None, help="Path to the TRUE generation result file")
-    parser.add_argument("--FALSE_generation_result_path", type=str, default=None, help="Path to the FALSE generation result file")
+    parser.add_argument("--TRUE_generation_result_file", type=str, default=None, help="Path to the TRUE generation result file")
+    parser.add_argument("--FALSE_generation_result_file", type=str, default=None, help="Path to the FALSE generation result file")
     args = parser.parse_args()
 
-    TRUE_generation_result_path = args.TRUE_generation_result_path
-    FALSE_generation_result_path = args.FALSE_generation_result_path
+    TRUE_generation_result_file = args.TRUE_generation_result_file
+    FALSE_generation_result_file = args.FALSE_generation_result_file
 
-    TRUE_answers = parse_file(TRUE_generation_result_path)
-    FALSE_answers = parse_file(FALSE_generation_result_path)
+    TRUE_answers = parse_file(TRUE_generation_result_file)
+    FALSE_answers = parse_file(FALSE_generation_result_file)
 
     # Handle cases where one or both files are None
     if TRUE_answers is None and FALSE_answers is None:
