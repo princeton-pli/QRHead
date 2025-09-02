@@ -253,6 +253,49 @@ class AttnBasedRetriever:
             results[doc_id] = per_doc_scores[i].item()
         return results
 
+    def score_docs_per_head_for_detection(self, query: str, docs: List[Dict]) -> Dict[str, Dict]:
+        """
+        similar to score_docs, but return per-head scores for each document.
+        return a dict of doc_id to scoring info. such as
+        {
+           "id": numpy.array(num_layer, num_heads)
+        }
+        """
+
+        prompt, tokenized_prompt, query_span, doc_spans = self.compose_scoring_prompt(query, docs)
+        null_prompt, tokenized_null_prompt, null_query_span, _ = self.compose_scoring_prompt(self.null_query, docs)
+
+        # up to query prompt the tokenized_prompt is the same
+        assert tokenized_null_prompt[:query_span[0]] == tokenized_prompt[:query_span[0]]
+        assert query_span[0] == null_query_span[0], "Query start indices do not match between query and null query."
+
+        # scoring with actual query
+        per_token_scores, kv_cache = self.score_per_token_attention_to_query(prompt, query_span, None, 0)
+
+        # use kv_cache from first query to speed up forward() for the calibration query.
+        for i in range(len(kv_cache.key_cache)):
+            kv_cache.key_cache[i] = kv_cache.key_cache[i][:,:,:query_span[0],:]
+            kv_cache.value_cache[i] = kv_cache.value_cache[i][:,:,:query_span[0],:]
+        kv_cache._seen_tokens = query_span[0]
+        start_idx = query_span[0]
+
+        null_per_token_scores, _ = self.score_per_token_attention_to_query(null_prompt, null_query_span, kv_cache, start_idx)
+
+        min_length = min(per_token_scores.shape[-1], null_per_token_scores.shape[-1])
+        per_token_scores_CAL = per_token_scores[:,:,:min_length] - null_per_token_scores[:,:,:min_length]
+
+        # goal for each doc, there is a n_tok * n_heads * n_layers score tensor and a calib_tensor
+        # run the calibration with the null query (and outlier removal)
+        # for each doc get a n_heads * n_layers score tensor
+
+        results = {} #
+
+        for i, doc in enumerate(docs):
+            doc_id = doc['idx']
+            # results[doc_id] = an n_heads * n_layers score array
+
+        return results
+
     def score_per_token_attention_to_query(self, prompt, query_span, kv_cache=None, start_idx=0):
         # return num_layers * num_heads * num_tokens, up to query_span
         tokenized_input = self.tokenizer(prompt, return_tensors='pt').to(self.device)
