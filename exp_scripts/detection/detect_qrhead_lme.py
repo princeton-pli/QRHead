@@ -1,63 +1,46 @@
 import argparse
 from tqdm import tqdm
-from pyserini.search import get_qrels
-from beir.retrieval.evaluation import EvaluateRetrieval
 from itertools import product
 import json
-import random
+import numpy as np
 from qrretriever.attn_retriever import FullHeadRetriever
 
 
-def beir_eval(retrieval_results, task: str):
+def lme_eval(retrieval_results, data_instances):
     """
     retrieval_results: a dict of qid -> {doc_id -> score}, retrieval results from a specific head
+    data_instances: a list of dicts, each dict represents an instance
     """
-    ks = [5, 10]
-    qrel_name = 'beir-v1.0.0-{}-test'.format(task)
-    _qrels = get_qrels(qrel_name)
-    evaluator = EvaluateRetrieval()
-    qrels = {}
-    for qid in retrieval_results:
-        assert isinstance(qid, str)
-        try:
-            __qrels = _qrels[qid]
-        except:
-            try:
-                __qrels = _qrels[int(qid)]
-            except:
-                print('Error in qrels for query id: ', qid)
-                continue
-        
-        # make sure the qrels are in the right format
-        qrels[qid] = {}
-        for doc_id in __qrels:
-            qrels[qid][str(doc_id)] = __qrels[doc_id]
-            
-        doc_keys = list(qrels[qid].keys())
-        for key in doc_keys:
-            if not isinstance(qrels[qid][key], int):
-                qrels[qid][key] = int(qrels[qid][key]) # make sure the relevance is integer
-            if qrels[qid][key] == 0:
-                qrels[qid].pop(key)
+    all_score_over_gold = []
 
-    ndcg, _, recall, precision = evaluator.evaluate(qrels, retrieval_results, ks)
-    return ndcg
+    for data in data_instances:
+        qid = data['idx']
+        gt_docs = data["gt_docs"] # a list of doc ids
 
+        doc_id2score = retrieval_results[qid] # doc_id -> score
+
+        if len(gt_docs) == 0:
+            score_over_gold = 0
+        else:
+            score_over_gold = np.sum([doc_id2score[doc_id] for doc_id in gt_docs])
+            sorted_docs_ids = sorted(doc_id2score.items(), key=lambda x: x[1], reverse=True)
+            sorted_docs_ids = [doc_id for doc_id, _ in sorted_docs_ids]
+
+        all_score_over_gold.append(score_over_gold)
+
+    mean_score_over_gold = np.mean(all_score_over_gold)
+    return mean_score_over_gold # QRScore for a specific head
 
 
 def get_doc_scores_per_head(full_head_retriever, data_instances, truncate_by_space=0):
     """
     data_instances: a list of dicts, each dict represents an instance
     """
-    random.seed(42)
-
     doc_scores_per_head = {} # qid -> {doc_id -> score tensor with shape (n_layers, n_heads)}
     for i, data in enumerate(tqdm(data_instances)):
 
         query = data["question"]
         docs = data["paragraphs"]
-
-        random.shuffle(docs)  # shuffle docs for each instance to detect QRHead for BEIR
         
         for p in docs:
 
@@ -80,7 +63,7 @@ def get_doc_scores_per_head(full_head_retriever, data_instances, truncate_by_spa
 
 
 
-def score_heads(doc_scores_per_head, task='nq'):
+def score_heads(doc_scores_per_head, data_instances):
     """
     doc_scores_per_head: a dict of dicts, outer dict key is question idx, inner dict key is doc idx, value is a (n_layers, n_heads) tensor
     """
@@ -107,8 +90,8 @@ def score_heads(doc_scores_per_head, task='nq'):
 
             retrieval_results[qid] = doc_id2score
             
-        head_ncdg = beir_eval(retrieval_results, task)
-        head_scores[(layer, head)] = head_ncdg["NDCG@10"]
+        head_score = lme_eval(retrieval_results, data_instances) # QRScore for this head
+        head_scores[(layer, head)] = head_score
 
     # replace key with layer-head
     head_scores_list = [(f"{layer}-{head}", score) for (layer, head), score in head_scores.items()]
@@ -143,8 +126,8 @@ if __name__=="__main__":
     with open(args.input_file, "r") as f:
         data_instances = json.load(f)
 
-    doc_scores_per_head = get_doc_scores_per_head(full_head_retriever, data_instances, truncate_by_space=args.truncate_by_space)
-    head_scores_list = score_heads(doc_scores_per_head, task='nq')
+    doc_scores_per_head = get_doc_scores_per_head(full_head_retriever, data_instances, truncate_by_space=args.truncate_by_space) # qid -> {doc_id -> score tensor with shape (n_layers, n_heads)}
+    head_scores_list = score_heads(doc_scores_per_head, data_instances)
 
     with open(args.output_file, "w") as f:
         json.dump(head_scores_list, f, indent=4)

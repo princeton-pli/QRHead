@@ -146,7 +146,9 @@ def generate_prompt(curr_haystack_dates, curr_haystack_sessions, curr_question, 
 def vllm_eval(prompts, model_dir):
 
     # max_model_len=131072 for Llama-3.1-8B-Instruct, Llama-3.1-70B-Instruct, Llama-3.2-3B-Instruct
+    #######################################################################
     # TODO: Change max_model_len if using other models
+    #######################################################################
     llm = LLM(model=model_dir, max_model_len=131072, tensor_parallel_size=torch.cuda.device_count())
 
     try:
