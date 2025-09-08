@@ -215,10 +215,11 @@ class AttnBasedRetriever:
 
         min_length = min(per_token_scores.shape[-1], null_per_token_scores.shape[-1])
         per_token_scores_CAL = per_token_scores[:,:,:min_length] - null_per_token_scores[:,:,:min_length]
+
         # Steps:
         # 1. select heads if head_set is not full
         # 2. aggregate scores across heads
-        # 3. run remove abnormal scores and aggregate again etc
+        # 3. run remove abnormal scores and aggregate across tokens
 
         # aggregate scores across layers and heads
         if self.attn_head_set == SPEC_HEAD_SET.FULL_SET:
@@ -232,7 +233,7 @@ class AttnBasedRetriever:
             indices = torch.tensor(head_set).to(self.device)
             layers = indices[:, 0]
             heads = indices[:, 1]
-            per_token_scores_CAL = per_token_scores_CAL[layers, heads]  # Shape: [2*L]
+            per_token_scores_CAL = per_token_scores_CAL[layers, heads]  # Shape: (num_selected_heads, num_tokens)
             per_token_scores_CAL = per_token_scores_CAL.sum(0)
 
         # remove abnormally calibrated scores and aggregate scores across tokens to get per-document scores
@@ -252,6 +253,72 @@ class AttnBasedRetriever:
             doc_id = doc['idx']
             results[doc_id] = per_doc_scores[i].item()
         return results
+
+
+    def score_docs_per_head_for_detection(self, query: str, docs: List[Dict]) -> Dict[str, Dict]:
+        """
+        This function is used for QRHead detection.
+
+        similar to score_docs, but return per-head scores for each document.
+        each doc is a dict with the following keys:
+            - doc_id: str
+            - text: str
+            - title: optional str
+        return a dict of doc_id to scoring info. such as
+        {
+           "id": Tensor(num_layer, num_heads)
+        }
+        """
+        prompt, tokenized_prompt, query_span, doc_spans = self.compose_scoring_prompt(query, docs)
+        null_prompt, tokenized_null_prompt, null_query_span, _ = self.compose_scoring_prompt(self.null_query, docs)
+
+        # up to query prompt the tokenized_prompt is the same
+        assert tokenized_null_prompt[:query_span[0]] == tokenized_prompt[:query_span[0]]
+        assert query_span[0] == null_query_span[0], "Query start indices do not match between query and null query."
+
+        # scoring with actual query
+        per_token_scores, kv_cache = self.score_per_token_attention_to_query(prompt, query_span, None, 0)
+
+        # use kv_cache from first query to speed up forward() for the calibration query.
+        for i in range(len(kv_cache.key_cache)):
+            kv_cache.key_cache[i] = kv_cache.key_cache[i][:,:,:query_span[0],:]
+            kv_cache.value_cache[i] = kv_cache.value_cache[i][:,:,:query_span[0],:]
+        kv_cache._seen_tokens = query_span[0]
+        start_idx = query_span[0]
+
+        null_per_token_scores, _ = self.score_per_token_attention_to_query(null_prompt, null_query_span, kv_cache, start_idx)
+
+        min_length = min(per_token_scores.shape[-1], null_per_token_scores.shape[-1])
+        per_token_scores_CAL = per_token_scores[:,:,:min_length] - null_per_token_scores[:,:,:min_length] # shape: (n_layers, n_heads, n_tok)
+
+        # Steps:
+        # 1. each doc has a (n_layers, n_heads, n_tok) per_token_scores_CAL Tensor
+        # 2. run the calibration to remove abnormal scores and aggregate across tokens
+        # 3. for each doc, get a (n_layers, n_heads) score tensor
+
+        # remove abnormally calibrated scores and aggregate scores across tokens to get per-document scores tensor (n_layers, n_heads)
+        per_doc_score_tensors = [] # a list of (n_layers, n_heads) tensors
+        for i, doc_span in enumerate(doc_spans):
+            curr_doc_per_tok_scores_CAL = per_token_scores_CAL[:, :, doc_span[0] : doc_span[1]+1] # shape: (n_layers, n_heads, n_tok)
+
+            threshold = curr_doc_per_tok_scores_CAL.mean(dim=-1) - 2*curr_doc_per_tok_scores_CAL.std(dim=-1) # shape: (n_layers, n_heads)
+
+            # broadcast threshold over tokens: compare (n_layers, n_heads, n_tok) > (n_layers, n_heads, 1)
+            tok_mask = curr_doc_per_tok_scores_CAL > threshold.unsqueeze(-1)  # shape (n_layers, n_heads, n_tok)
+            
+            # zero out tokens below threshold and sum over tokens -> (n_layers, n_heads)
+            masked_scores = curr_doc_per_tok_scores_CAL.masked_fill(~tok_mask, 0.0)
+            masked_scores = masked_scores.sum(dim=-1)  # (n_layers, n_heads)
+            per_doc_score_tensors.append(masked_scores)
+
+        assert len(per_doc_score_tensors) == len(docs), "Number of per-document scores does not match number of documents."
+
+        results = {} # doc_id -> score tensor
+        for i, doc in enumerate(docs):
+            doc_id = doc['idx']
+            results[doc_id] = per_doc_score_tensors[i]  # shape: (n_layers, n_heads)
+        return results
+
 
     def score_per_token_attention_to_query(self, prompt, query_span, kv_cache=None, start_idx=0):
         # return num_layers * num_heads * num_tokens, up to query_span
@@ -283,10 +350,6 @@ class AttnBasedRetriever:
             per_token_scores.append(attn_weights.squeeze(0))
 
         per_token_scores = torch.stack(per_token_scores, dim=0) # (num_layers, num_heads, num_tokens)
-
-        # gc.collect()
-        # torch.cuda.empty_cache()
-
         return per_token_scores, kv_cache
 
     def _get_attn_weights(self, key_states, query_states):

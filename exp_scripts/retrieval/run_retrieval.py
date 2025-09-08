@@ -1,6 +1,8 @@
 import argparse
 import json
 from tqdm import tqdm
+import time
+import numpy as np
 from qrretriever.attn_retriever import FullHeadRetriever, QRRetriever
 
 
@@ -10,7 +12,7 @@ def main():
     parser.add_argument("--input_file", type=str, required=True, help="Path to the input JSON file.")
     parser.add_argument("--output_file", type=str, required=True, help="Path to the output JSON file.")
 
-    parser.add_argument("--data_type", type=str, choices=["beir", "lme", "clipper"], required=True, help="Type of data. Default is 'lme'.")
+    parser.add_argument("--data_type", type=str, choices=["beir", "lme", "clipper"], required=True, help="Type of data.")
     parser.add_argument("--truncate_by_space", type=int, default=0, help="Truncate paragraphs by number of words. Default is 0 (no truncation).")
 
     parser.add_argument("--retriever_type", type=str, choices=["full_head", "qr_head"], default="full_head", help="Type of retriever to use. Default is 'full_head'.")
@@ -32,11 +34,21 @@ def main():
         )
 
     # read input file
+    print(f"Reading input file: {args.input_file}", flush=True)
     with open(args.input_file, "r") as f:
         data_instances = json.load(f)
 
+    #####################################################################
+    # Subsample to 512 data instances for BEIR
+    #####################################################################
+    if args.data_type == "beir":
+        if len(data_instances) > 512:
+            np.random.seed(42)
+            indices = np.random.choice(len(data_instances), 512, replace=False)
+            data_instances = [data_instances[i] for i in indices]
 
     results = {}
+    latency_list = []
 
     for i, data in enumerate(tqdm(data_instances)):
 
@@ -61,11 +73,18 @@ def main():
             # Reverse the order of docs for BEIR, to match the document order used in ICR baseline.
             docs = docs[::-1]
 
-        retrieval_scores = retriever.score_docs(query, docs) # doc_id -> score        
+        start_time = time.time()
+        retrieval_scores = retriever.score_docs(query, docs) # doc_id -> score
+        end_time = time.time()
+        print(f"Query {i} processed in {(end_time - start_time) * 1000} ms", flush=True)
+        latency_list.append((end_time - start_time) * 1000)  # Convert to milliseconds
+
         results[data['idx']] = retrieval_scores
 
     with open(args.output_file, "w") as f:
         json.dump(results, f, indent=4)
+
+    print(f"Average Latency: {np.mean(latency_list)} ms", flush=True)
 
 
 if __name__ == "__main__":
