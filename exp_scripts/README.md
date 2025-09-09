@@ -11,6 +11,31 @@ Make sure you have the required data files and configuration files in place:
 - Dataset files in their respective directories (`beir_data/`, `clipper_data/`, `longmemeval_data/`)
 - Configuration files in `src/qrretriever/configs/`
 
+# QRHead Detection Scripts
+
+`detection/` directory contains scripts for running QRHead detection using `128 samples of BEIR NQ` and `70 samples of LME single-session-user`.
+
+## Detection Examples
+
+### BEIR NQ Dataset
+
+```bash
+python exp_scripts/detection/detect_qrhead_beir.py
+    --input_file INPUT_DATA_JSON_FILE \
+    --output_file DETECTION_RESULT_JSON_FILE \
+    --truncate_by_space 400 \
+    --config_or_config_path src/qrretriever/configs/Llama-3.1-8B-Instruct_full_head.yaml
+```
+
+### LME single-session-user Dataset
+
+```bash
+python exp_scripts/detection/detect_qrhead_lme.py
+    --input_file INPUT_DATA_JSON_FILE \
+    --output_file DETECTION_RESULT_JSON_FILE \
+    --config_or_config_path src/qrretriever/configs/Llama-3.1-8B-Instruct_full_head.yaml
+```
+
 # Retrieval Scripts
 
 `retrieval/` directory contains scripts for running retrieval experiments and evaluating results for BEIR, LME and CLIPPER.
