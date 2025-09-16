@@ -10,7 +10,7 @@
 **QRRetriever** is a general-purpose retriever that uses the attention scores of QRHead (Query-Focused Retrieval Heads) of language models for retrieval from long context.
 
 ## TODO
-[ ] QRHead detection code
+[☑️] QRHead detection code
 
 ## Installation
 
@@ -52,8 +52,8 @@ print(scores)
 ## Reproducing Experiments on Long-Context Reasoning and BEIR Re-ranking
 Please refer to the [README](https://github.com/princeton-pli/QRHead/tree/main/exp_scripts) in `exp_scripts` for
 * QRHead detection
-* Running retrieval
-* Running generation
+* Running and evaluating retrieval
+* Running and evaluating generation
 
 ## Citation
 
