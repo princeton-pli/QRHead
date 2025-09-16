@@ -7,6 +7,8 @@
 
 [[Query-Focused Retrieval Heads Improve Long-Context Reasoning and Re-ranking (EMNLP 2025)](https://arxiv.org/pdf/2506.09944)]
 
+[![Hugging Face](https://img.shields.io/badge/HuggingFace-Dataset-yellow.svg?logo=huggingface)](https://huggingface.co/datasets/PrincetonPLI/QRHead)
+
 **QRRetriever** is a general-purpose retriever that uses the attention scores of QRHead (Query-Focused Retrieval Heads) of language models for retrieval from long context.
 
 ## TODO
