@@ -5,10 +5,22 @@ Three datasets we used:
 - **CLIPPER**
 - **LongMemEval**
 
+## Data
+We store preprocessed data for LongMemEval, CLIPPER, and BEIR wihtin this Huggingface repo: [QRHead dataset](https://huggingface.co/datasets/PrincetonPLI/QRHead/tree/main).
+* `data/beir_data`
+  * `nq_train.json` is used to detect QRHead for BEIR.
+  * The remaining data files are used for BEIR evaluation.
+* `data/longmemeval_data`
+  * `single-session-user_s.json` is used to detect QRHead used for both LongMemEval and CLIPPER.
+  * `other_s_original.json` is used for LongMemEval evaluation.
+* `data/clipper_data`
+  * `test-00000-of-00002.json` is used for CLIPPER evaluation, where the claims are true.
+  * `test-00001-of-00002.json` is used for CLIPPER evaluation, where the claims are false.
+
 ## Prerequisites
 
 Make sure you have the required data files and configuration files in place:
-- Dataset files in their respective directories (`beir_data/`, `clipper_data/`, `longmemeval_data/`)
+- Dataset files in their respective directories (`data/beir_data/`, `data/clipper_data/`, `data/longmemeval_data/`)
 - Configuration files in `src/qrretriever/configs/`
 
 # QRHead Detection Scripts
@@ -21,7 +33,7 @@ Make sure you have the required data files and configuration files in place:
 
 ```bash
 python exp_scripts/detection/detect_qrhead_beir.py
-    --input_file INPUT_DATA_JSON_FILE \
+    --input_file data/beir_data/nq_train.json \
     --output_file DETECTION_RESULT_JSON_FILE \
     --truncate_by_space 400 \
     --config_or_config_path src/qrretriever/configs/Llama-3.1-8B-Instruct_full_head.yaml
@@ -31,14 +43,14 @@ python exp_scripts/detection/detect_qrhead_beir.py
 
 ```bash
 python exp_scripts/detection/detect_qrhead_lme.py
-    --input_file INPUT_DATA_JSON_FILE \
+    --input_file data/longmemeval_data/single-session-user_s.json \
     --output_file DETECTION_RESULT_JSON_FILE \
     --config_or_config_path src/qrretriever/configs/Llama-3.1-8B-Instruct_full_head.yaml
 ```
 
 # Retrieval Scripts
 
-`retrieval/` directory contains scripts for running retrieval experiments and evaluating results for BEIR, LME and CLIPPER.
+`retrieval/` directory contains scripts for running retrieval and evaluating results for BEIR, LME and CLIPPER.
 
 ## Retrieval Examples
 
@@ -46,7 +58,7 @@ python exp_scripts/detection/detect_qrhead_lme.py
 
 ```bash
 python exp_scripts/retrieval/run_retrieval.py \
-    --input_file INPUT_DATA_JSON_FILE \
+    --input_file data/beir_data/fever_bm25_top_200.json \
     --output_file RETRIEVAL_RESULT_JSON_FILE \
     --data_type beir \
     --truncate_by_space 400 \
@@ -58,7 +70,7 @@ python exp_scripts/retrieval/run_retrieval.py \
 
 ```bash
 python exp_scripts/retrieval/run_retrieval.py \
-    --input_file INPUT_DATA_JSON_FILE \
+    --input_file data/clipper_data/test-00000-of-00002.json \
     --output_file RETRIEVAL_RESULT_JSON_FILE \
     --data_type clipper \
     --retriever_type qr_head \
@@ -69,7 +81,7 @@ python exp_scripts/retrieval/run_retrieval.py \
 
 ```bash
 python exp_scripts/retrieval/run_retrieval.py \
-    --input_file INPUT_DATA_JSON_FILE \
+    --input_file data/longmemeval_data/other_s.json \
     --output_file RETRIEVAL_RESULT_JSON_FILE \
     --data_type lme \
     --retriever_type qr_head \
@@ -92,7 +104,7 @@ python exp_scripts/retrieval/eval_retrieval_beir.py \
 ```bash
 python exp_scripts/retrieval/eval_retrieval.py \
     --retrieval_result_file RETRIEVAL_RESULT_JSON_FILE \
-    --data_file INPUT_DATA_JSON_FILE
+    --data_file data/clipper_data/test-00000-of-00002.json
 ```
 
 ### LME Evaluation
@@ -100,12 +112,12 @@ python exp_scripts/retrieval/eval_retrieval.py \
 ```bash
 python exp_scripts/retrieval/eval_retrieval.py \
     --retrieval_result_file RETRIEVAL_RESULT_JSON_FILE \
-    --data_file INPUT_DATA_JSON_FILE
+    --data_file data/longmemeval_data/other_s.json
 ```
 
 # Generation Scripts
 
-`generation/` directory contains scripts for running generation for LME and CLIPPER.
+`generation/` directory contains scripts for running and evaluating generation for LME and CLIPPER.
 
 ## Generation Examples
 
@@ -113,7 +125,7 @@ python exp_scripts/retrieval/eval_retrieval.py \
 
 ```bash
 python exp_scripts/generation/run_generation_clipper.py \
-    --input_file INPUT_DATA_JSON_FILE \
+    --input_file data/clipper_data/test-00000-of-00002.json \
     --output_file GENERATION_RESULT_JSONL_FILE \
     --model_path MODEL_PATH \
     --retrieval_method retriever \
@@ -125,7 +137,7 @@ python exp_scripts/generation/run_generation_clipper.py \
 
 ```bash
 python exp_scripts/generation/run_generation_lme.py \
-    --input_file INPUT_DATA_JSON_FILE \
+    --input_file data/longmemeval_data/other_s_original.json \
     --output_file GENERATION_RESULT_JSONL_FILE \
     --model_path MODEL_PATH \
     --retrieval_method retriever \
@@ -152,8 +164,8 @@ We use `Llama-3.1-8B-Instruct` model for evluating LME results.
 bash exp_scripts/generation/serve_vllm.sh 0 MODEL_PATH
 
 python exp_scripts/generation/eval_generation_lme.py \
-    ----base_url BASE_URL \
+    --base_url BASE_URL \
     --metric_model MODEL_PATH \
     --generation_result_file GENERATION_RESULT_JSONL_FILE \
-    --reference_file DATA_JSON_FILE
+    --reference_file data/longmemeval_data/other_s_original.json
 ```
