@@ -55,7 +55,7 @@ Please refer to the [README](https://github.com/princeton-pli/QRHead/tree/main/e
 ## Citation
 
 ```bibtex
-@inproceedings{wu25qrhead,
+@inproceedings{zhang25qrhead,
     title={Query-Focused Retrieval Heads Improve Long-Context Reasoning and Re-ranking},
     author={Wuwei Zhang and Fangcong Yin and Howard Yen and Danqi Chen and Xi Ye},
     booktitle={Proceedings of EMNLP},
