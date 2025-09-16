@@ -50,7 +50,10 @@ print(scores)
 * `Qwen2.5-7B-Instruct`
 
 ## Reproducing Experiments on Long-Context Reasoning and BEIR Re-ranking
-Please refer to the [README](https://github.com/princeton-pli/QRHead/tree/main/exp_scripts) in `exp_scripts`
+Please refer to the [README](https://github.com/princeton-pli/QRHead/tree/main/exp_scripts) in `exp_scripts` for
+* QRHead detection
+* Running retrieval
+* Running generation
 
 ## Citation
 
