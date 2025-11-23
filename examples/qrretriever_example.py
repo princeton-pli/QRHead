@@ -1,5 +1,5 @@
 from qrretriever.attn_retriever import QRRetriever
-retriever = QRRetriever(model_name_or_path="meta-llama/Llama-3.1-8B-Instruct")
+retriever = QRRetriever(model_name_or_path="meta-llama/Llama-3.2-3B-Instruct")
 
 query = "Which town in Nizhnyaya has the largest population?"
 docs = [
@@ -9,4 +9,6 @@ docs = [
 scores = retriever.score_docs(query, docs)
 
 print(scores)
-# expected output: {'test0': 0.63, 'test1': 1.17}
+# expected output:
+# Llama-3.2-3B-Instruct: {'test0': 0.74169921875, 'test1': 1.1298828125}
+# Llama-3.1-8B-Instruct: {'test0': 1.0048828125, 'test1': 1.0791015625}
