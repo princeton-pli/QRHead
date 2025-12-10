@@ -92,10 +92,20 @@ class DynamicLayerWithQuery(CacheLayerMixin):
         """Returns the maximum cache capacity (None for unlimited)."""
         return None
 
-    def get_mask_sizes(self) -> Tuple[int, int]:
-        """Returns (kv_length, offset) for attention mask generation."""
-        seq_len = self.get_seq_length()
-        return seq_len, 0
+    def get_mask_sizes(self, cache_position: torch.Tensor) -> Tuple[int, int]:
+        """Return the length and offset of the cache, used to generate the mask"""
+        kv_offset = 0
+        query_length = cache_position.shape[0]
+        kv_length = self.get_seq_length() + query_length
+        return kv_length, kv_offset
+
+    def get_usable_length(self, new_seq_length: int) -> int:
+        """Given the sequence length of the new inputs, returns the usable length of the cache."""
+        max_length = self.get_max_cache_shape()
+        previous_seq_length = self.get_seq_length()
+        if max_length is not None and previous_seq_length + new_seq_length > max_length:
+            return max_length - new_seq_length
+        return previous_seq_length
 
 
 class KeyCacheList:
@@ -224,6 +234,14 @@ class DynamicCacheWithQuery(DynamicCache):
         # Use the custom update method that handles queries
         layer = self.layers[layer_idx]
         return layer.update_with_query(query_states, key_states, value_states, cache_kwargs)
+
+    def get_usable_length(self, new_seq_length: int, layer_idx: Optional[int] = 0) -> int:
+        """Given the sequence length of the new inputs, returns the usable length of the cache."""
+        # Delegate to the layer if it exists
+        if layer_idx < len(self.layers):
+            return self.layers[layer_idx].get_usable_length(new_seq_length)
+        # If layer doesn't exist yet, return 0 (no previous cache)
+        return 0
 
     @classmethod
     def from_legacy_cache(

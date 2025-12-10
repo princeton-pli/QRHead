@@ -1,0 +1,5 @@
+# Default configuration
+
+attn_head_set: "full_heads"
+model_base_class: "Qwen3-8B"
+model_name_or_path: "Qwen/Qwen3-8B"

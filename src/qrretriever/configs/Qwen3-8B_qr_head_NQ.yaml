@@ -1,0 +1,5 @@
+# Default configuration
+
+attn_head_set: "21-31,21-18,20-15,22-4,21-11,20-16,21-17,19-13,21-10,21-8,18-5,20-14,19-14,24-13,17-4,19-28" # top16
+model_base_class: "Qwen3-8B"
+model_name_or_path: "Qwen/Qwen3-8B"

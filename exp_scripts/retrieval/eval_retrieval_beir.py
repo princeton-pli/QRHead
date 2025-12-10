@@ -39,7 +39,7 @@ def beir_eval(retrieval_results, data: str):
 
 
 def collect_results(args):
-    tasks = ["trec-covid", "nfcorpus", "scifact", "robust04", "dbpedia-entity", "fiqa", "trec-news", "scidocs", "fever", "climate-fever", "nq"]
+    tasks = ["nq", "trec-covid", "nfcorpus", "fiqa", "scifact", "scidocs", "fever", "climate-fever", "dbpedia-entity", "robust04", "trec-news"]
     task_results = {}
 
     for task in tasks:
