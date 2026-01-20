@@ -10,6 +10,7 @@ from .custom_cache import DynamicCacheWithQuery
 from .custom_modeling_llama import LlamaForCausalLM, repeat_kv
 from .custom_modeling_qwen2 import Qwen2ForCausalLM
 from .custom_modeling_qwen3 import Qwen3ForCausalLM
+from .custom_modeling_qwen3_moe import Qwen3MoeForCausalLM
 
 PACKAGE_DIR = Path(__file__).parent
 CONFIG_DIR = PACKAGE_DIR / 'configs'
@@ -46,6 +47,8 @@ class AttnBasedRetriever:
             BaseClass = Qwen2ForCausalLM
         elif self.model_base_class.lower() in ['qwen3-8b', 'qwen3-embedding-8b']:
             BaseClass = Qwen3ForCausalLM
+        elif self.model_base_class.lower() in ['qwen3-30b-a3b-thinking-2507', 'qwen3-moe']:
+            BaseClass = Qwen3MoeForCausalLM
         else:
             raise ValueError(f"Unsupported model class: {self.model_base_class}")
         
@@ -111,7 +114,7 @@ class AttnBasedRetriever:
         if self.model_base_class.lower() in ['llama-3.1-8b-instruct', 'llama-3.1-70b-instruct', 'llama-3.2-3b-instruct', 'llama-3.2-1b-instruct']:
             self.prompt_prefix = '<|start_header_id|>user<|end_header_id|>'
             self.prompt_suffix = '<|eot_id|><|start_header_id|>assistant<|end_header_id|>'
-        elif self.model_base_class.lower() in ['qwen2.5-7b-instruct', 'qwen3-8b', 'qwen3-embedding-8b']:
+        elif self.model_base_class.lower() in ['qwen2.5-7b-instruct', 'qwen3-8b', 'qwen3-embedding-8b', 'qwen3-30b-a3b-thinking-2507', 'qwen3-moe']:
             self.prompt_prefix = '<|im_start|>user'
             self.prompt_suffix = '<|im_end|>\n<|im_start|>assistant'
         else:
@@ -119,7 +122,7 @@ class AttnBasedRetriever:
         
         if self.model_base_class.lower() in ['llama-3.1-8b-instruct', 'llama-3.1-70b-instruct', 'llama-3.2-3b-instruct', 'llama-3.2-1b-instruct']:
             self.prompt_separator = ' \n\n'
-        elif self.model_base_class.lower() in ['qwen2.5-7b-instruct', 'qwen3-8b', 'qwen3-embedding-8b']:
+        elif self.model_base_class.lower() in ['qwen2.5-7b-instruct', 'qwen3-8b', 'qwen3-embedding-8b', 'qwen3-30b-a3b-thinking-2507', 'qwen3-moe']:
             self.prompt_separator = '\n\n'
         else:
             self.prompt_separator = '\n\n'
