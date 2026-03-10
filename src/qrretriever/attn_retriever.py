@@ -10,6 +10,7 @@ from .custom_cache import DynamicCacheWithQuery
 from .custom_modeling_llama import LlamaForCausalLM, repeat_kv
 from .custom_modeling_qwen2 import Qwen2ForCausalLM
 from .custom_modeling_smollmv3 import SmolLM3ForCausalLM
+from .custom_modeling_gemma3 import Gemma3ForCausalLM
 
 PACKAGE_DIR = Path(__file__).parent
 CONFIG_DIR = PACKAGE_DIR / 'configs'
@@ -46,6 +47,8 @@ class AttnBasedRetriever:
             BaseClass = Qwen2ForCausalLM
         elif self.model_base_class.lower() in ["smollm3forcausallm"]:
             BaseClass = SmolLM3ForCausalLM
+        elif self.model_base_class.lower() in ["gemma3forcausallm"]:
+            BaseClass = Gemma3ForCausalLM
         else:
             raise ValueError(f"Unsupported model class: {self.model_base_class}")
         
@@ -117,6 +120,9 @@ class AttnBasedRetriever:
         elif self.model_base_class.lower() in ["smollm3forcausallm"]:
             self.prompt_prefix = '<|im_start|>system\n## Metadata\n\nKnowledge Cutoff Date: June 2025\nToday Date: 05 March 2026\nReasoning Mode: /think\n\nYou are a helpful AI assistant named SmolLM, trained by Hugging Face. Your role as an assistant involves thoroughly exploring questions through a systematic thinking process before providing the final precise and accurate solutions. This requires engaging in a comprehensive cycle of analysis, summarizing, exploration, reassessment, reflection, backtracking, and iteration to develop well-considered thinking process. Please structure your response into two main sections: Thought and Solution using the specified format: <think> Thought section </think> Solution section. In the Thought section, detail your reasoning process in steps. Each step should include detailed considerations such as analysing questions, summarizing relevant findings, brainstorming new ideas, verifying the accuracy of the current steps, refining any errors, and revisiting previous steps. In the Solution section, based on various attempts, explorations, and reflections from the Thought section, systematically present the final solution that you deem correct. The Solution section should be logical, accurate, and concise and detail necessary steps needed to reach the conclusion.\n\n<|im_start|>user'
             self.prompt_suffix = '<|im_end|>\n<|im_start|>assistant'
+        elif self.model_base_class.lower() in ["gemma3forcasuallm"]:
+            self.prompt_prefix = "<bos><start_of_turn>user"
+            self.prompt_suffix = "<end_of_turn>\n<start_of_turn>model\n"
         else:
             raise NotImplementedError("Prompt prefix and suffix not defined for the model of {}.".format(self.model_base_class))
         
@@ -125,6 +131,8 @@ class AttnBasedRetriever:
         elif self.model_base_class.lower() in ['qwen2.5-7b-instruct']:
             self.prompt_separator = '\n\n'
         elif self.model_base_class.lower() in ["smollm3forcausallm"]:
+            self.prompt_separator = '\n'
+        elif self.model_base_class.lower() in ["gemma3forcasuallm"]:
             self.prompt_separator = '\n'
         else:
             self.prompt_separator = '\n\n'

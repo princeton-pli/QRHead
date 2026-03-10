@@ -1,0 +1,5 @@
+# Default configuration
+
+attn_head_set: "10_3,10_24,11_11,11_2,12_4,12_5,13_8,13_17,14_8,14_24,15_7,15_31,16_25,16_12,17_28,17_25,18_31,18_29,19_1,19_25,20_23,20_27,21_28,21_30"
+model_base_class: "Gemma3ForCausalLM"
+model_name_or_path: "google/gemma-3-4b-it"
