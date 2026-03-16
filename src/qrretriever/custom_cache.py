@@ -1,67 +1,102 @@
-from typing import Any, Dict, Optional, Tuple
-from transformers.cache_utils import DynamicCache
+from typing import Any, Dict, List, Optional, Tuple
+from transformers.cache_utils import DynamicCache, DynamicLayer
 import torch
 
-class DynamicCacheWithQuery(DynamicCache):
-    '''
-    Cache class used for QRRetriever
-    '''
-    def __init__(self, query_indices=[]) -> None:
+
+class DynamicLayerWithQuery(DynamicLayer):
+    """DynamicLayer extended to also accumulate query states."""
+
+    def __init__(self) -> None:
         super().__init__()
-        self._query_indices = query_indices # indices for query vectors to save
-        self.query_cache = []
+        self.queries: Optional[torch.Tensor] = None
+
+    def update_query(self, query_states: torch.Tensor) -> None:
+        if self.queries is None or self.queries.numel() == 0:
+            self.queries = query_states
+        else:
+            self.queries = torch.cat([self.queries, query_states], dim=-2)
+
+
+class DynamicCacheWithQuery(DynamicCache):
+    """
+    Cache class used for QRRetriever — updated for transformers 5.x.
     
+    5.x replaced the flat key_cache/value_cache lists with a self.layers[]
+    list of DynamicLayer objects. This class:
+      - keeps the identical update() signature from 4.44.1 (query, key, value, layer_idx)
+      - re-exposes key_cache / value_cache as properties for any code that
+        accesses them directly (e.g. model attention implementations)
+      - stores query states inside DynamicLayerWithQuery per layer
+    """
+
+    def __init__(self, query_indices: List[int] = []) -> None:
+        super().__init__()
+        self._query_indices = query_indices
+
+    # ------------------------------------------------------------------
+    # Compatibility properties — these are what 4.44.1 exposed as plain
+    # list attributes. Now they read through to self.layers[].
+    # ------------------------------------------------------------------
+    @property
+    def key_cache(self) -> List[torch.Tensor]:
+        return [
+            layer.keys if (layer.is_initialized and layer.keys.numel() > 0)
+            else []
+            for layer in self.layers
+        ]
+
+    @property
+    def value_cache(self) -> List[torch.Tensor]:
+        return [
+            layer.values if (layer.is_initialized and layer.values.numel() > 0)
+            else []
+            for layer in self.layers
+        ]
+
+    # ------------------------------------------------------------------
+    # query_cache — mirrors the old list interface
+    # ------------------------------------------------------------------
+    @property
+    def query_cache(self) -> List[Optional[torch.Tensor]]:
+        return [getattr(layer, "queries", None) for layer in self.layers]
+
+    # ------------------------------------------------------------------
+    # update() — identical signature to 4.44.1, no call-site changes needed
+    # ------------------------------------------------------------------
     def update(
         self,
-        query_states: torch.Tensor,
+        query_states: Optional[torch.Tensor],
         key_states: torch.Tensor,
         value_states: torch.Tensor,
         layer_idx: int,
         cache_kwargs: Optional[Dict[str, Any]] = None,
     ) -> Tuple[torch.Tensor, torch.Tensor]:
-        """
-        Updates the cache with the new `key_states` and `value_states` for the layer `layer_idx`.
+        # Ensure layers list is long enough, using our extended layer type
+        while len(self.layers) <= layer_idx:
+            self.layers.append(DynamicLayerWithQuery())
 
-        Parameters:
-            query_states (`torch.Tensor`):
-                The new query states to cache.
-            key_states (`torch.Tensor`):
-                The new key states to cache.
-            value_states (`torch.Tensor`):
-                The new value states to cache.
-            layer_idx (`int`):
-                The index of the layer to cache the states for.
-            cache_kwargs (`Dict[str, Any]`, `optional`):
-                Additional arguments for the cache subclass. No additional arguments are used in `DynamicCache`.
+        layer: DynamicLayerWithQuery = self.layers[layer_idx]
 
-        Return:
-            A tuple containing the updated key and value states.
-        """
-        # Update the number of seen tokens
-        if layer_idx == 0:
-            self._seen_tokens += key_states.shape[-2]
+        # key/value update via the layer object (handles lazy init + concat)
+        keys, values = layer.update(key_states, value_states, cache_kwargs)
 
-        # Update the cache
-        if len(self.key_cache) <= layer_idx:
-            self.key_cache.append(key_states)
-            self.value_cache.append(value_states)
-        else:
-            self.key_cache[layer_idx] = torch.cat([self.key_cache[layer_idx], key_states], dim=-2)
-            self.value_cache[layer_idx] = torch.cat([self.value_cache[layer_idx], value_states], dim=-2)
-        
+        # query update
         if query_states is not None:
-            if len(self.query_cache) <= layer_idx:
-                self.query_cache.append(query_states)
-            else:
-                self.query_cache[layer_idx] = torch.cat([self.query_cache[layer_idx], query_states], dim=-2)
-        return self.key_cache[layer_idx], self.value_cache[layer_idx]
-    
+            layer.update_query(query_states)
+
+        return keys, values
+
+    # ------------------------------------------------------------------
+    # from_legacy_cache — removed in 5.x, reimplemented here
+    # ------------------------------------------------------------------
     @classmethod
-    def from_legacy_cache(cls, past_key_values: Optional[Tuple[Tuple[torch.FloatTensor]]] = None) -> "DynamicCache":
-        """Converts a cache in the legacy cache format into an equivalent `DynamicCache`."""
-        cache = cls()
+    def from_legacy_cache(
+        cls,
+        past_key_values: Optional[Tuple[Tuple[torch.FloatTensor]]] = None,
+        query_indices: List[int] = [],
+    ) -> "DynamicCacheWithQuery":
+        cache = cls(query_indices=query_indices)
         if past_key_values is not None:
-            for layer_idx in range(len(past_key_values)):
-                key_states, value_states = past_key_values[layer_idx]
+            for layer_idx, (key_states, value_states) in enumerate(past_key_values):
                 cache.update(None, key_states, value_states, layer_idx)
         return cache
